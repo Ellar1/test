@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>摄像头视频变成AR场景</title>
+    <script src="js/three.js"></script>
+    <script src="js/loaders/OBJLoader.js"></script>
+    <script src="js/controls/OrbitControls.js"></script>
+    <style type="text/css">
+        div#canvas-frame {
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+            background-color: #EEEEEE;
+            /*position:absolute;*/
+            /*top:30px;*/
+            /*width:100%;*/
+        }
+        .booth {
+            position: absolute;
+            /*top:30px;*/
+            /*width:100%;*/
+        }
+        body,html{
+            padding:0;
+            margin:0;
+            overflow: hidden;
+        }
+
+    </style>
+
+
+</head>
+
+<body >
+<div id="canvas-frame">
+    <button  id="btnA">开启AR</button>
+    <button  id="btnB">关闭AR</button>
+    <div class="booth">
+        <video id="video" width="400" height="300" style="display:none" ></video>
+        <!--<canvas id='canvas' width='400' height='300'>style="display:none"</canvas>-->
+        <!--摄像头视频变成AR场景背景可以来回切换-->
+    </div>
+</div>
+
+<script>
+
+    //创建一个div,用来盛放canvas的容器
+    var width = window.innerWidth || 2;
+    var height = window.innerHeight || 2;
+
+    var container = document.getElementById("canvas-frame");
+    var info = document.getElementById("booth");
+    //添加两个按钮
+       var btnA = document.getElementById("btnA");
+       var btnB = document.getElementById("btnB");
+
+
+
+    //兼容模式
+    var requestAnimationFrame = (function () {
+        return window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.oRequestAnimationFrame ||
+            window.msRequestAnimationFrame ||
+            function (callback) {
+                window.setTimeout(callback, 1000 / 60);
+            }
+    })();
+
+
+    var scene;//用来盛放模型的场景
+    var camera;//呈现模型的相机
+    var renderer;//渲染模型的渲染器
+    var controls;//操作模型的控制器
+    var objLoader;//加载obj模型的加载器
+
+
+    var sceneB;
+    var cameraB;
+    var sceneP;
+    var cameraP;
+
+    var mesh;
+    var geometry;
+    var material;
+
+    init();
+    animation();
+
+    function prepareRender() {
+        //  width = document.getElementById('canvas-frame').clientWidth;
+        //height = document.getElementById('canvas-frame').clientHeight;
+        scene = new THREE.Scene();//创建场景
+
+        camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);//创建透视相机
+        renderer = new THREE.WebGLRenderer({antialias: true,
+
+            alpha: true
+
+        });//创建渲染器；
+
+        //相机的位置
+        camera.position.x = 10;
+        camera.position.y = 10;
+        camera.position.z = 10;
+        renderer.autoClear = false;//在输出之前清除
+        renderer.setSize(width, height);//渲染布面的大小
+        camera.position.set(0, 0, 8);
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+       container.appendChild(renderer.domElement);//把渲染器添加到场景中；
+       controls = new THREE.OrbitControls(camera, renderer.domElement.parentNode);//创建控制器
+        // controls.enableZoom = false;//禁止滚轮
+
+        // controls.target = new THREE.Vector3(0, 0, 0);
+       camera.aspect = width / height;
+    }
+
+
+    var light;
+    function initLight() {
+        //环境光
+        // 环境光
+        light = new THREE.AmbientLight(0xffffff);
+        light.position.set(100, 100, 200);
+        scene.add(light);
+        //方向光
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        scene.add(directionalLight);
+    }
+
+
+
+    //加载模型
+    function insertObj() {
+        //初始化OBJLoader加载器。
+        objLoader = new THREE.OBJLoader();
+
+        //创建模型的纹理（贴图）加载器。
+        var TextureLoader = new THREE.TextureLoader();
+        var texture = TextureLoader.load("resource/obj/jy.jpg");
+        // texture.side=THREE.DoubleSide;
+        //加载模型
+        objLoader.load(
+            //资源路径
+            'resource/obj/jy.obj', function (object) {
+                object.traverse(function (child) {
+                    //将加载到的纹理给模型的材质
+                    if (child.isMesh) {
+                        // if (child instanceof THREE.Mesh) {
+                        child.material.map = texture;
+                    }
+                });
+
+                //为了呈现更清晰。将模型放大20倍
+                // object.scale.set(20, 20, 20);
+                //将模型的位置始终定位在中心点(0,0,0)
+                //这一步的操作是为了配合模型控制器的效果，前面的模型控制器就是中心点就是设置在(0,0,0)位置的。
+                //用户在用鼠标旋转模型时，好像在围绕着模型的中心旋转。
+                var box = new THREE.Box3().setFromObject(object);
+                var center = box.getCenter();//用一个Box获取到模型的当前位置。
+                object.position.set(-center.x, -center.y, -center.z);//将模型移回原点。
+                scene.add(object);
+
+
+            },//进度回调函数
+            function (xhr) {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            // 当加载有错误时调用
+            function (error) {
+                console.log('An error happened');
+            }
+        );
+    }
+
+    // var mediaStreamTrack;
+
+    function initObject() {
+        sceneB = new THREE.Scene();
+        cameraB = new THREE.PerspectiveCamera(45, width/height, 0.1, 1000);
+        renderer.setClearColor(0xFFFFFF, 1.0);
+        cameraB.position.set(0,0,100);
+        //创建一个平面
+        var geometry = new THREE.PlaneGeometry(180,100,1);
+        geometry.scale( -1, 1, 1 );
+
+        var video = document.getElementById('video');
+        var texture;
+
+        //访问用户媒体设备的兼容方法
+        function getUserMedia(constraints, success, error) {
+            if (navigator.mediaDevices.getUserMedia) {
+                //最新的标准API
+                navigator.mediaDevices.getUserMedia(constraints).then(success).catch(error);
+            } else if (navigator.webkitGetUserMedia) {
+                //webkit核心浏览器
+                navigator.webkitGetUserMedia(constraints,success, error)
+            } else if (navigator.mozGetUserMedia) {
+                //firfox浏览器
+                navigator.mozGetUserMedia(constraints, success, error);
+            } else if (navigator.getUserMedia) {
+                //旧版API
+                navigator.getUserMedia(constraints, success, error);
+            }
+        }
+
+        function success(stream) {
+            //兼容webkit核心浏览器
+            let CompatibleURL = window.URL || window.webkitURL;
+            //将视频流设置为video元素的源
+            console.log(stream);
+
+            mediaStreamTrack = typeof stream.stop === 'function' ? stream : stream.getTracks()[1];
+           video.src = CompatibleURL.createObjectURL(stream);
+            video.srcObject = stream;
+            video.play();
+        }
+
+        function error(error) {
+            console.log(`访问用户媒体设备失败${error.name}, ${error.message}`);
+        }
+
+        if (navigator.mediaDevices.getUserMedia || navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia) {
+            //调用用户媒体设备, 访问摄像头
+            getUserMedia({video : {width: width, height: height}}, success, error);
+        } else {
+            alert('不支持访问用户媒体');
+        }
+
+
+        texture = new THREE.VideoTexture( video );//可以直接把视频设为材质
+        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.format = THREE.RGBFormat;
+
+        material = new THREE.MeshBasicMaterial( { map: texture , side: THREE.DoubleSide} );
+        mesh = new THREE.Mesh(geometry,  material);
+        sceneB.add(mesh);
+    }
+
+
+
+       // 初试化，背景图
+       function initBackground(){
+           sceneP = new THREE.Scene();
+           cameraP = new THREE.PerspectiveCamera(45, width/height, 0.1, 1000);
+           renderer.setClearColor(0xFFFFFF, 1.0);
+           cameraP.position.set(0,0,100);
+           //创建一个平面
+           var planeGeometry = new THREE.PlaneGeometry(300,300,1);
+           planeGeometry.scale( - 1, 1, 1 );
+           var planeTexture=new THREE.TextureLoader().load("resource/background.jpg");
+           var planeMaterial =new THREE.MeshBasicMaterial({
+               map:planeTexture,
+               //color:0xffff00,
+               side: THREE.DoubleSide
+           });
+           var planeP= new THREE.Mesh(planeGeometry,planeMaterial);
+           sceneP.add(planeP);
+       }
+
+
+
+    function render() {
+        renderer.render(scene, camera);
+        renderer.render(sceneB, cameraB);//渲染背景
+        renderer.render(sceneP, cameraP);
+    }
+    function animation() {
+        controls.update();
+        requestAnimationFrame(animation);
+
+        btnA.onclick=function(){
+            cameraP.position.set(0,0,110);
+        };
+        btnB.onclick=function(){
+            cameraP.position.set(0,0,100);
+            mediaStreamTrack && mediaStreamTrack.stop();
+        };
+
+
+        render();
+
+    }
+
+    function init() {
+        prepareRender();
+        initLight();
+        initObject();
+        insertObj();
+        // initCamera();
+        initBackground();
+        animation();
+    }
+
+</script>
+
+</body>
+</html>
