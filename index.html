@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>摄像头视频变成AR场景</title>
     <script src="js/three.js"></script>
-    <script src="js/loaders/OBJLoader.js"></script>
-    <script src="js/controls/OrbitControls.js"></script>
+    <!--<script src="js/loaders/OBJLoader.js"></script>-->
+    <!--<script src="js/controls/OrbitControls.js"></script>-->
     <style type="text/css">
         div#canvas-frame {
             border: none;
@@ -27,20 +27,18 @@
             margin:0;
             overflow: hidden;
         }
-
-        button{
-        width:300px;
-        height:200px;}
+    button{
+        width:300px;height:200px;
+    }
     </style>
 
 
 </head>
 
 <body >
-       <button  id="btnA">开启AR</button>
-    <button  id="btnB">关闭AR</button>
 <div id="canvas-frame">
- 
+    <button  id="btnA">开启AR</button>
+    <button  id="btnB">关闭AR</button>
     <div class="booth">
         <video id="video" width="400" height="300" style="display:none" ></video>
         <!--<canvas id='canvas' width='400' height='300'>style="display:none"</canvas>-->
@@ -133,21 +131,17 @@
         //方向光
         var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
         scene.add(directionalLight);
-        
+        var boxGeometry = new THREE.BoxBufferGeometry( 100, 100, 100 );
+        var boxMaterial = new THREE.MeshLambertMaterial( { color: 0xffff00 } );
+        var box = new THREE.Mesh( boxGeometry, boxMaterial );
+        scene.add( box );
     }
 
 
 
     //加载模型
 
-function insertObj() {
-    var geometry = new THREE.BoxBufferGeometry( 200, 200, 200 );
-    var material = new THREE.MeshBasicMaterial( { map: texture } );
 
-    mesh = new THREE.Mesh( geometry, material );
-    scene.add( mesh );
-
-}
     // var mediaStreamTrack;
 
     function initObject() {
@@ -263,7 +257,7 @@ function insertObj() {
         prepareRender();
         initLight();
         initObject();
-        insertObj();
+
         // initCamera();
         initBackground();
         animation();
